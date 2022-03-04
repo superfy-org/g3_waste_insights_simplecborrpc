@@ -38,11 +38,11 @@ static rpc_error_t execute_rpc_call_internal(const rpc_function_entry_t *rpc_fun
     if (cbor_value_enter_container(&outer_it, &inner_it) != CborNoError) return RPC_ERROR_PARSER_FAILED;
 
     while (!cbor_value_at_end(&inner_it)) {
-        if (!cbor_value_is_text_string(&inner_it)) return RPC_ERROR_INVALID_REQUEST;
+        if (!cbor_value_is_byte_string(&inner_it)) return RPC_ERROR_INVALID_REQUEST;
 
         bool result = false;
 
-        cbor_value_text_string_equals(&inner_it, "id", &result);
+        cbor_value_byte_string_equals(&inner_it, "id", &result);
         if (result) {
             if (cbor_value_advance(&inner_it) != CborNoError) return RPC_ERROR_PARSER_FAILED;
 
@@ -51,15 +51,15 @@ static rpc_error_t execute_rpc_call_internal(const rpc_function_entry_t *rpc_fun
             continue;
         }
 
-        cbor_value_text_string_equals(&inner_it, "func", &result);
+        cbor_value_byte_string_equals(&inner_it, "m", &result);
         if (result) {
             if (cbor_value_advance(&inner_it) != CborNoError) return RPC_ERROR_PARSER_FAILED;
 
             int32_t function_index;
-            if (cbor_value_is_text_string(&inner_it)) {
+            if (cbor_value_is_byte_string(&inner_it)) {
                 char tmp[33];
                 size_t key_size = 33;
-                if (cbor_value_copy_text_string(&inner_it, tmp, &key_size, NULL) != CborNoError) return RPC_ERROR_PARSER_FAILED;
+                if (cbor_value_copy_byte_string(&inner_it, tmp, &key_size, NULL) != CborNoError) return RPC_ERROR_PARSER_FAILED;
 
                 if (key_size == 33) return RPC_ERROR_INVALID_REQUEST; // max size is 32 chars + null terminator
 
@@ -84,7 +84,7 @@ static rpc_error_t execute_rpc_call_internal(const rpc_function_entry_t *rpc_fun
             continue;
         }
 
-        cbor_value_text_string_equals(&inner_it, "args", &result);
+        cbor_value_byte_string_equals(&inner_it, "p", &result);
         if (result) {
             if (cbor_value_advance(&inner_it) != CborNoError) return RPC_ERROR_PARSER_FAILED;
 
@@ -188,15 +188,12 @@ static rpc_error_t execute_rpc_call_internal(const rpc_function_entry_t *rpc_fun
     cbor_encoder_init(&response_encoder, output_buffer, *output_buffer_size, 0);
     cbor_encoder_create_map(&response_encoder, &map_encoder, result_key_count);
 
+    rpc_error_t rpc_result = rpc_functions[handle].function_ptr(&args_it, &map_encoder, error_msg,
+                                                                user_ptr);
     if (*transaction_id != 0) {
         cbor_encode_text_stringz(&map_encoder, "id");
         cbor_encode_uint(&map_encoder, *transaction_id);
     }
-
-    cbor_encode_text_stringz(&map_encoder, "res");
-
-    rpc_error_t rpc_result = rpc_functions[handle].function_ptr(&args_it, &map_encoder, error_msg,
-                                                                user_ptr);
 
     cbor_encoder_close_container(&response_encoder, &map_encoder);
     if (cbor_encoder_get_extra_bytes_needed(&response_encoder) != 0) {
@@ -256,9 +253,9 @@ execute_rpc_call(const rpc_function_entry_t *rpc_functions, size_t rpc_functions
                                                 &error_msg, user_ptr);
 
     if (err != RPC_OK || error_msg != NULL) {
-        size_t map_key_count = 1;
+        size_t map_key_count = 2;
         if (transaction_id != 0) {
-            map_key_count = 2;
+            map_key_count = 3;
         }
 
         CborEncoder response_encoder, map_encoder;
@@ -266,29 +263,21 @@ execute_rpc_call(const rpc_function_entry_t *rpc_functions, size_t rpc_functions
         cbor_encoder_init(&response_encoder, output_buffer, saved_buffer_size, 0);
         cbor_encoder_create_map(&response_encoder, &map_encoder, map_key_count);
 
+
+        cbor_encode_text_stringz(&map_encoder, "e");
+        cbor_encode_int(&map_encoder, err);
+
+        cbor_encode_text_stringz(&map_encoder, "msg");
+        if (error_msg != NULL) cbor_encode_text_stringz(&map_encoder, error_msg);
+        else cbor_encode_text_stringz(&map_encoder, error_to_string(err));
+
         if (transaction_id != 0) {
             cbor_encode_text_stringz(&map_encoder, "id");
             cbor_encode_uint(&map_encoder, transaction_id);
         }
 
-        cbor_encode_text_stringz(&map_encoder, "err");
-
-        CborEncoder error_map_encoder;
-        cbor_encoder_create_map(&map_encoder, &error_map_encoder, 2);
-
-        cbor_encode_text_stringz(&error_map_encoder, "c");
-        cbor_encode_int(&error_map_encoder, err);
-
-        cbor_encode_text_stringz(&error_map_encoder, "msg");
-
-        if (error_msg != NULL) cbor_encode_text_stringz(&error_map_encoder, error_msg);
-        else cbor_encode_text_stringz(&error_map_encoder, error_to_string(err));
-
-        cbor_encoder_close_container(&map_encoder, &error_map_encoder);
-
         cbor_encoder_close_container(&response_encoder, &map_encoder);
-
-        if (cbor_encoder_get_extra_bytes_needed(&error_map_encoder) != 0) {
+        if (cbor_encoder_get_extra_bytes_needed(&map_encoder) != 0) {
             if (*output_buffer_size > sizeof(encode_error_response)) {
                 memcpy(output_buffer, encode_error_response, sizeof(encode_error_response));
                 *output_buffer_size = sizeof(encode_error_response);

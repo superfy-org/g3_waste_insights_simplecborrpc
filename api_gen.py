@@ -38,14 +38,14 @@ def generate_api(path, rpc_table_in):
 
     rpc_funcs = list(rpc_table.keys())
 
-    rpc_funcs.insert(0, "__version")
-    rpc_table["__version"] = []
+    rpc_funcs.insert(0, "__ver")
+    rpc_table["__ver"] = []
 
-    rpc_funcs.insert(0, "__ping")
+    rpc_funcs.insert(1, "__ping")
     rpc_table["__ping"] = []
 
-    rpc_funcs.insert(0, "__funcs")
-    rpc_table["__funcs"] = []
+    rpc_funcs.insert(2, "__lookup")
+    rpc_table["__lookup"] = [CborTypes.CBOR_TYPE_TEXT_STRING]
 
     print(rpc_funcs)
     f1, f2, G = generate_hash(rpc_funcs, Hash=IntSaltHash)
@@ -70,7 +70,7 @@ def generate_api(path, rpc_table_in):
         'keys': ', '.join('"{}"'.format(x) for x in rpc_funcs)
     }
 
-    with open(os.path.join(path, "rpc_api.c"), 'w') as f:
+    with open(os.path.join(path, "rpc_api_common.c"), 'w') as f:
         f.write(c_template.render(**template_args))
         f.write("\n")  # add a new line for pedantic warnings
 
