@@ -45,7 +45,7 @@ def generate_api(path, rpc_table_in):
     rpc_table["__ping"] = []
 
     rpc_funcs.insert(2, "__lookup")
-    rpc_table["__lookup"] = [CborTypes.CBOR_TYPE_TEXT_STRING]
+    rpc_table["__lookup"] = [CborTypes.CBOR_TYPE_BYTE_STRING]
 
     print(rpc_funcs)
     f1, f2, G = generate_hash(rpc_funcs, Hash=IntSaltHash)
