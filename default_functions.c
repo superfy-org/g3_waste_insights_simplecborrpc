@@ -6,7 +6,7 @@ rpc_error_t
 rpc___ver(const CborValue *args_iterator, CborEncoder *result, const char **error_msg, void *user_ptr) {
     struct CborEncoder arr_enc;
 
-    cbor_encode_text_stringz(result, "v");
+    cbor_encode_byte_string(result, "v", 1);
 
     cbor_encoder_create_array(result, &arr_enc, 1);
 
@@ -23,7 +23,7 @@ rpc_error_t
 rpc___ping(const CborValue *args_iterator, CborEncoder *result, const char **error_msg, void *user_ptr) {
     struct CborEncoder arr_enc;
 
-    cbor_encode_text_stringz(result, "v");
+    cbor_encode_byte_string(result, "v", 1);
 
     cbor_encoder_create_array(result, &arr_enc, 1);
     cbor_encode_byte_string(&arr_enc, "pong", sizeof("pong")-1);
@@ -45,10 +45,10 @@ rpc___lookup(const CborValue *args_iterator, CborEncoder *result, const char **e
 
     func_id = rpc_lookup_index_by_key(func_key);
 
-    cbor_encode_text_stringz(result, "v");
+    cbor_encode_byte_string(result, "v", 1);
 
     cbor_encoder_create_array(result, &arr_enc, 1);
-    cbor_encode_int( &arr_enc, func_id);
+    cbor_encode_int(&arr_enc, func_id);
     if (cbor_encoder_close_container(result, &arr_enc) != CborNoError) {
         return RPC_ERROR_ENCODE_ERROR;
     }

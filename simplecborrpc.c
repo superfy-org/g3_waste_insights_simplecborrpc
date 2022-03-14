@@ -23,18 +23,6 @@ static rpc_error_t execute_rpc_call_internal(const rpc_function_entry_t *rpc_fun
     // process request data
     if (!cbor_value_is_map(&outer_it)) return RPC_ERROR_INVALID_REQUEST;
 
-    CborValue id_it;
-    if (cbor_value_map_find_value(&outer_it, "id", &id_it) != CborNoError) return RPC_ERROR_PARSER_FAILED;
-    if (cbor_value_is_valid(&id_it)) {
-        if (cbor_value_is_unsigned_integer(&id_it)) {
-            cbor_value_get_uint64(&id_it, transaction_id);
-        } else {
-            return RPC_ERROR_PARSE_ERROR;
-        }
-    } else {
-        *transaction_id = 0;
-    }
-
     if (cbor_value_enter_container(&outer_it, &inner_it) != CborNoError) return RPC_ERROR_PARSER_FAILED;
 
     while (!cbor_value_at_end(&inner_it)) {
@@ -46,7 +34,11 @@ static rpc_error_t execute_rpc_call_internal(const rpc_function_entry_t *rpc_fun
         if (result) {
             if (cbor_value_advance(&inner_it) != CborNoError) return RPC_ERROR_PARSER_FAILED;
 
-            // id was already collected earlier
+            if (cbor_value_is_unsigned_integer(&inner_it)) {
+                cbor_value_get_uint64(&inner_it, transaction_id);
+            } else {
+                return RPC_ERROR_PARSE_ERROR;
+            }
             if (cbor_value_advance(&inner_it) != CborNoError) return RPC_ERROR_PARSER_FAILED;
             continue;
         }
@@ -191,7 +183,7 @@ static rpc_error_t execute_rpc_call_internal(const rpc_function_entry_t *rpc_fun
     rpc_error_t rpc_result = rpc_functions[handle].function_ptr(&args_it, &map_encoder, error_msg,
                                                                 user_ptr);
     if (*transaction_id != 0) {
-        cbor_encode_text_stringz(&map_encoder, "id");
+        cbor_encode_byte_string(&map_encoder, "id", 2);
         cbor_encode_uint(&map_encoder, *transaction_id);
     }
 
@@ -264,15 +256,15 @@ execute_rpc_call(const rpc_function_entry_t *rpc_functions, size_t rpc_functions
         cbor_encoder_create_map(&response_encoder, &map_encoder, map_key_count);
 
 
-        cbor_encode_text_stringz(&map_encoder, "e");
+        cbor_encode_byte_string(&map_encoder, "e", 1);
         cbor_encode_int(&map_encoder, err);
 
-        cbor_encode_text_stringz(&map_encoder, "msg");
-        if (error_msg != NULL) cbor_encode_text_stringz(&map_encoder, error_msg);
-        else cbor_encode_text_stringz(&map_encoder, error_to_string(err));
+        cbor_encode_byte_string(&map_encoder, "msg", 3);
+        if (error_msg != NULL) cbor_encode_byte_string(&map_encoder, error_msg, strlen(error_msg));
+        else cbor_encode_byte_string(&map_encoder, error_to_string(err), strlen(error_to_string(err)));
 
         if (transaction_id != 0) {
-            cbor_encode_text_stringz(&map_encoder, "id");
+            cbor_encode_byte_string(&map_encoder, "id", 2);
             cbor_encode_uint(&map_encoder, transaction_id);
         }
 
