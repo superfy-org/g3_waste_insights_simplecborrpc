@@ -5,6 +5,10 @@
 
 #include "simplecborrpc.h"
 
+#define RPC_API_VERSION_MAJOR 1
+#define RPC_API_VERSION_MINOR 0
+#define RPC_API_VERSION_TEST 0
+
 // rpc function prototypes
 @@ for func, _ in rpc_functions @@
 rpc_error_t rpc_@= func =@(const CborValue *args_iterator, CborEncoder *result, const char **error_msg, void *user_ptr);
