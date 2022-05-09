@@ -12,6 +12,7 @@ static rpc_error_t execute_rpc_call_internal(const rpc_function_entry_t *rpc_fun
     CborParser parser;
     CborValue outer_it;
     CborValue inner_it, args_it;
+    bool optional_transaction_id = false;
 
     size_t flags = CborValidateMapKeysAreUnique | CborValidateNoIndeterminateLength | CborValidateNoUndefined | CborValidateCompleteData;
     if (cbor_parser_init(input_buffer, input_buffer_size, flags, &parser, &outer_it) != CborNoError)
@@ -36,6 +37,7 @@ static rpc_error_t execute_rpc_call_internal(const rpc_function_entry_t *rpc_fun
 
             if (cbor_value_is_unsigned_integer(&inner_it)) {
                 cbor_value_get_uint64(&inner_it, transaction_id);
+                optional_transaction_id = true;
             } else {
                 return RPC_ERROR_PARSE_ERROR;
             }
@@ -171,7 +173,7 @@ static rpc_error_t execute_rpc_call_internal(const rpc_function_entry_t *rpc_fun
 
     // execute rpc function
     size_t result_key_count = 1;
-    if (*transaction_id != 0) {
+    if (true == optional_transaction_id) {
         result_key_count = 2;
     }
 
@@ -182,7 +184,7 @@ static rpc_error_t execute_rpc_call_internal(const rpc_function_entry_t *rpc_fun
 
     rpc_error_t rpc_result = rpc_functions[handle].function_ptr(&args_it, &map_encoder, error_msg,
                                                                 user_ptr);
-    if (*transaction_id != 0) {
+    if (true == optional_transaction_id) {
         cbor_encode_byte_string(&map_encoder, "id", 2);
         cbor_encode_uint(&map_encoder, *transaction_id);
     }
