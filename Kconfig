@@ -1,0 +1,8 @@
+config ZEPHYR_SIMPLECBORRPC_MODULE
+	bool
+
+config SIMPLECBORRPC
+	bool "Simple CBOR RPC library"
+	depends on TINYCBOR_SUPERFY
+	help
+	  Allows execution of RPC commands over a CBOR interface
